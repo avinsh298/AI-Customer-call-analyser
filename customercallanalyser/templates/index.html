@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Call Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>📞 Customer Call Analyzer</h1>
+        <p>Analyze customer call transcripts with AI-powered sentiment analysis</p>
+        
+        <div class="input-section">
+            <h2>Enter Customer Call Transcript</h2>
+            <textarea id="transcriptInput" placeholder="Paste customer call transcript here... 
+Example: 'Hi, I was trying to book a slot yesterday but the payment failed multiple times. This is very frustrating as I needed that appointment urgently.'"></textarea>
+            <button onclick="analyzeTranscript()">Analyze Transcript</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <p>Analyzing transcript with AI... ⏳</p>
+        </div>
+
+        <div id="result" class="result hidden">
+            <h2>Analysis Results</h2>
+            <div class="result-grid">
+                <div class="result-card">
+                    <h3>📋 Summary</h3>
+                    <p id="summaryText"></p>
+                </div>
+                <div class="result-card">
+                    <h3>😊 Sentiment</h3>
+                    <p id="sentimentText"></p>
+                </div>
+            </div>
+            <div class="result-card full-width">
+                <h3>Original Transcript Preview</h3>
+                <p id="transcriptPreview"></p>
+            </div>
+            <p class="success-message">✅ Analysis saved to call_analysis.csv</p>
+        </div>
+
+        <div id="error" class="error hidden">
+            <p id="errorText"></p>
+        </div>
+
+        <div class="sample-transcripts">
+            <h3>💡 Sample Transcripts (Click to use)</h3>
+            <div class="sample-buttons">
+                <button onclick="loadSample(1)">Frustrated Customer</button>
+                <button onclick="loadSample(2)">Happy Customer</button>
+                <button onclick="loadSample(3)">Neutral Inquiry</button>
+            </div>
+        </div>
+
+        <div class="history-section">
+            <h2>📊 Recent Analysis History</h2>
+            <button onclick="loadHistory()">Refresh History</button>
+            <div id="history" class="history"></div>
+        </div>
+    </div>
+
+    <script>
+        const sampleTranscripts = {
+            1: "Hi, I was trying to book a slot yesterday but the payment failed multiple times. This is very frustrating as I needed that appointment urgently. Your website kept showing error messages and I lost valuable time. I'm quite disappointed with this experience.",
+            
+            2: "Hello! I just wanted to say thank you for the excellent service I received yesterday. The representative was incredibly helpful and solved my issue in minutes. The new feature you added is amazing and has made my life so much easier. Keep up the great work!",
+            
+            3: "I'm calling to inquire about your pricing plans. Could you send me information about the different tiers and what features are included? Also, what's the cancellation policy if I need to change my plan later? Thank you."
+        };
+
+        function loadSample(num) {
+            document.getElementById('transcriptInput').value = sampleTranscripts[num];
+        }
+
+        async function analyzeTranscript() {
+            const transcript = document.getElementById('transcriptInput').value.trim();
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+
+            // Hide previous results
+            result.classList.add('hidden');
+            error.classList.add('hidden');
+
+            if (!transcript) {
+                showError('Please enter a transcript to analyze.');
+                return;
+            }
+
+            if (transcript.length < 10) {
+                showError('Transcript is too short. Please provide more details.');
+                return;
+            }
+
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ transcript: transcript })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('summaryText').textContent = data.summary;
+                    document.getElementById('sentimentText').textContent = data.sentiment;
+                    document.getElementById('transcriptPreview').textContent = data.transcript_preview;
+                    
+                    loading.classList.add('hidden');
+                    result.classList.remove('hidden');
+                    
+                    // Refresh history
+                    loadHistory();
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                loading.classList.add('hidden');
+                showError('Analysis failed: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            document.getElementById('errorText').textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                const data = await response.json();
+                
+                const historyDiv = document.getElementById('history');
+                
+                if (data.history && data.history.length > 0) {
+                    historyDiv.innerHTML = data.history.map(entry => `
+                        <div class="history-entry">
+                            <div class="history-header">
+                                <span class="timestamp">${entry.Timestamp}</span>
+                                <span class="sentiment-badge sentiment-${entry.Sentiment}">${entry.Sentiment}</span>
+                            </div>
+                            <p class="summary">${entry.Summary}</p>
+                            <p class="transcript-preview">${entry.Transcript}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    historyDiv.innerHTML = '<p>No analysis history yet.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Load history on page load
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+</body>
+</html>
