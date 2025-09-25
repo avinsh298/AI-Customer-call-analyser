@@ -35,5 +35,5 @@ This application processes customer service call transcripts and provides:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/customer-call-analyzer.git
+git clone https://github.com/avinsh298/customer-call-analyzer.git
 cd customer-call-analyzer
